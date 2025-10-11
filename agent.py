@@ -69,7 +69,7 @@ class ChopinCompetitionAgent:
             website_performances = await self.website_collector.collect(days_back=30)
             youtube_performances = await self.youtube_collector.collect(
                 search_query="Chopin Competition 2025",
-                max_results=30
+                max_results=50  # Zwiększone z 30 na 50
             )
             
             all_performances = website_performances + youtube_performances

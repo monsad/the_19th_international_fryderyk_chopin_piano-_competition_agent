@@ -156,10 +156,52 @@ class CompetitionWebsiteCollector:
             if competitors_link and competitors_link.get('href'):
                 competitor_url = competitors_link['href']
                 if not competitor_url.startswith('http'):
-                    competitor_url = base_url.rsplit('/', 1)[0] + '/' + competitor_url.lstrip('/')
+                    competitor_url = 'https://www.chopincompetition.pl' + competitor_url
                 
-                print(f"      📋 Znaleziono link do uczestników: {competitor_url}")
-                # TODO: w przyszłości można pobrać listę uczestników
+                print(f"      📋 Pobieranie listy uczestników z: {competitor_url}")
+                
+                # Pobierz stronę z uczestnikami
+                try:
+                    comp_response = await client.get(competitor_url, follow_redirects=True)
+                    comp_soup = BeautifulSoup(comp_response.text, 'html.parser')
+                    
+                    # Szukaj nazwisk pianistów - różne możliwe struktury
+                    pianist_names = set()
+                    
+                    # Metoda 1: Szukaj w tekście wzorców nazwisk
+                    all_text = comp_soup.get_text()
+                    # Wzór: Imię Nazwisko (z dużych liter na początku)
+                    name_matches = re.findall(r'\b([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b', all_text)
+                    
+                    # Filtruj typowe słowa które nie są nazwiskami
+                    exclude_words = {'Chopin Competition', 'The Chopin', 'Piano Competition', 'First Stage', 
+                                   'Second Stage', 'Third Stage', 'Competition Stage', 'View All', 'More Info',
+                                   'Read More', 'Find Out', 'Click Here', 'Follow Us', 'About Us'}
+                    
+                    for name in name_matches:
+                        if name not in exclude_words and len(name.split()) >= 2:
+                            pianist_names.add(name)
+                    
+                    print(f"      ✅ Znaleziono {len(pianist_names)} pianistów na stronie")
+                    
+                    # Utwórz PerformanceData dla każdego pianisty
+                    for name in list(pianist_names)[:50]:  # Max 50 żeby nie przeciążyć
+                        performance = PerformanceData(
+                            id=hashlib.md5((name + "competitors").encode()).hexdigest(),
+                            pianist_name=name,
+                            nationality="Unknown",
+                            stage=CompetitionStage.STAGE_1,
+                            performance_date=datetime.now(),
+                            pieces_performed=[],
+                            video_url=None,
+                            source=competitor_url,
+                            source_type=SourceType.COMPETITION_WEBSITE,
+                            timestamp=datetime.now()
+                        )
+                        performances.append(performance)
+                
+                except Exception as e:
+                    print(f"      ⚠️  Błąd pobierania uczestników: {e}")
             
             # Szukaj newsów o występach
             news_items = soup.find_all(['article', 'div'], class_=lambda x: x and 'news' in str(x).lower())
@@ -288,16 +330,16 @@ class YouTubeCollector:
         # Przykład: "ERIC LU – second round" lub "John Smith plays Chopin"
         
         patterns = [
-            # Format: "ERIC LU – second round" (wszystkie duże litery)
-            r'^([A-Z]+(?:\s+[A-Z]+)+)\s+[–-]',
+            # Format: "ERIC LU – second round" lub "ADAM KAŁDUŃSKI – second round" (wszystkie duże litery, z polskimi znakami)
+            r'^([A-ZĄĆĘŁŃÓŚŹŻ]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ]+)+)\s+[–-]',
             # Format: "John Smith plays Chopin"
-            r'^([A-Z][a-z]+\s+[A-Z][a-z]+)\s+plays',
+            r'^([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)\s+plays',
             # Format: "John Smith - some text"
-            r'^([A-Z][a-z]+\s+[A-Z][a-z]+)\s+-',
+            r'^([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)\s+-',
             # Format: "Pianist: John Smith"
-            r'Pianist:\s+([A-Z][a-z]+\s+[A-Z][a-z]+)',
-            # Format: "PIANIST NAME in capitals"
-            r'^([A-Z]+(?:\s+[A-Z]+){1,3})\s+[–-–—]',
+            r'Pianist:\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)',
+            # Format: "PIANIST NAME in capitals" (rozszerzone)
+            r'^([A-ZĄĆĘŁŃÓŚŹŻ]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ]+){1,3})\s+[–-–—]',
         ]
         
         for pattern in patterns:
