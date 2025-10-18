@@ -1,4 +1,4 @@
-# data_collectors.py
+
 import httpx
 import feedparser
 from bs4 import BeautifulSoup
@@ -35,30 +35,24 @@ class CompetitionWebsiteCollector:
             
             performances = []
             
-            # Specjalna obsługa dla chopincompetition.pl
             if 'chopincompetition.pl' in url:
                 performances.extend(await self._scrape_chopincompetition_pl(client, soup, url))
             
-            # Ogólne szukanie informacji o występach
             performance_sections = soup.find_all(['div', 'article'], class_=lambda x: x and ('performance' in str(x).lower() or 'pianist' in str(x).lower()))
             
             for section in performance_sections[:50]:
                 try:
-                    # Wyciągnij nazwisko pianisty
                     name_elem = section.find(['h2', 'h3', 'span'], class_=lambda x: x and 'name' in str(x).lower())
                     if not name_elem:
                         continue
                     
                     pianist_name = name_elem.get_text(strip=True)
                     
-                    # Wyciągnij utwory
                     pieces = self._extract_pieces(section.get_text())
                     
-                    # Określ etap konkursu
                     stage_text = section.get_text().lower()
                     stage = self._determine_stage(stage_text)
                     
-                    # Wyciągnij narodowość
                     nationality = self._extract_nationality(section.get_text())
                     
                     performance = PerformanceData(
@@ -174,17 +168,27 @@ class CompetitionWebsiteCollector:
                     name_matches = re.findall(r'\b([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b', all_text)
                     
                     # Filtruj typowe słowa które nie są nazwiskami
-                    exclude_words = {'Chopin Competition', 'The Chopin', 'Piano Competition', 'First Stage', 
-                                   'Second Stage', 'Third Stage', 'Competition Stage', 'View All', 'More Info',
-                                   'Read More', 'Find Out', 'Click Here', 'Follow Us', 'About Us'}
+                    exclude_words = {
+                        'Chopin Competition', 'The Chopin', 'Piano Competition', 'First Stage', 
+                        'Second Stage', 'Third Stage', 'Competition Stage', 'View All', 'More Info',
+                        'Read More', 'Find Out', 'Click Here', 'Follow Us', 'About Us',
+                        'Competition International', 'International Fryderyk', 'Fryderyk Chopin',
+                        'Chopin Piano', 'Piano Chopin', 'Konkurs Pianistyczny', 'Pianistyczny Im',
+                        'Im Fryderyka', 'Special Inaugural', 'Inaugural Concert', 'Morning Session',
+                        'Evening Session', 'First Round', 'Second Round', 'Third Round'
+                    }
                     
                     for name in name_matches:
-                        if name not in exclude_words and len(name.split()) >= 2:
+                        is_excluded = any(excl.lower() in name.lower() for excl in exclude_words)
+                        
+                        keywords_to_skip = ['competition', 'chopin', 'fryderyk', 'konkurs', 'pianistyczny', 'international']
+                        has_keyword = any(kw in name.lower() for kw in keywords_to_skip)
+                        
+                        if not is_excluded and not has_keyword and len(name.split()) >= 2:
                             pianist_names.add(name)
                     
                     print(f"      ✅ Znaleziono {len(pianist_names)} pianistów na stronie")
                     
-                    # Utwórz PerformanceData dla każdego pianisty
                     for name in list(pianist_names)[:50]:  # Max 50 żeby nie przeciążyć
                         performance = PerformanceData(
                             id=hashlib.md5((name + "competitors").encode()).hexdigest(),
@@ -203,25 +207,21 @@ class CompetitionWebsiteCollector:
                 except Exception as e:
                     print(f"      ⚠️  Błąd pobierania uczestników: {e}")
             
-            # Szukaj newsów o występach
             news_items = soup.find_all(['article', 'div'], class_=lambda x: x and 'news' in str(x).lower())
             print(f"      📰 Znaleziono {len(news_items)} elementów newsów")
             
             for item in news_items[:20]:
                 try:
-                    # Szukaj tytułów z nazwiskami pianistów
                     title = item.find(['h1', 'h2', 'h3', 'h4'])
                     if not title:
                         continue
                     
                     title_text = title.get_text(strip=True)
                     
-                    # Sprawdź czy tytuł zawiera nazwisko pianisty (wzór: "IMIĘ NAZWISKO")
                     pianist_match = re.search(r'\b([A-Z][a-z]+\s+[A-Z][a-z]+)\b', title_text)
                     if pianist_match:
                         pianist_name = pianist_match.group(1)
                         
-                        # Wyciągnij opis
                         description = item.get_text()[:500]
                         pieces = self._extract_pieces(description)
                         stage = self._determine_stage(description)
@@ -239,13 +239,13 @@ class CompetitionWebsiteCollector:
                             timestamp=datetime.now()
                         )
                         performances.append(performance)
-                        print(f"      ✅ Znaleziono pianistę: {pianist_name}")
+                        print(f"Znaleziono pianistę: {pianist_name}")
                 
                 except Exception as e:
                     continue
             
         except Exception as e:
-            print(f"      ⚠️  Błąd parsowania chopincompetition.pl: {e}")
+            print(f"Błąd parsowania chopincompetition.pl: {e}")
         
         return performances
 
@@ -287,14 +287,14 @@ class YouTubeCollector:
                     
                     # Wyciągnij nazwisko pianisty z tytułu
                     title = snippet['title']
-                    print(f"   📹 Video: {title[:80]}...")
+                    print(f"Video: {title[:80]}...")
                     pianist_name = self._extract_pianist_name(title)
                     
                     if not pianist_name:
-                        print(f"      ⚠️  Could not extract pianist name, skipping")
+                        print(f"Could not extract pianist name, skipping")
                         continue
                     
-                    print(f"      ✅ Found pianist: {pianist_name}")
+                    print(f"Found pianist: {pianist_name}")
                     
                     # Wyciągnij utwory z opisu
                     description = snippet['description']
@@ -330,15 +330,10 @@ class YouTubeCollector:
         # Przykład: "ERIC LU – second round" lub "John Smith plays Chopin"
         
         patterns = [
-            # Format: "ERIC LU – second round" lub "ADAM KAŁDUŃSKI – second round" (wszystkie duże litery, z polskimi znakami)
             r'^([A-ZĄĆĘŁŃÓŚŹŻ]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ]+)+)\s+[–-]',
-            # Format: "John Smith plays Chopin"
             r'^([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)\s+plays',
-            # Format: "John Smith - some text"
             r'^([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)\s+-',
-            # Format: "Pianist: John Smith"
             r'Pianist:\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)',
-            # Format: "PIANIST NAME in capitals" (rozszerzone)
             r'^([A-ZĄĆĘŁŃÓŚŹŻ]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ]+){1,3})\s+[–-–—]',
         ]
         

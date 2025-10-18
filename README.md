@@ -1,9 +1,9 @@
 
- 🎹 Chopin Competition Analysis Agent
+Chopin Competition Analysis Agent
 
 System AI do analizy występów uczestników XIX Konkursu Chopinowskiego i przewidywania szans na wygraną.
 
-## 🎯 Funkcjonalności
+## Funkcjonalności
 
 - **Analiza Występów**: Szczegółowa ocena techniki, muzykalności i interpretacji
 - **Predykcja Zwycięzcy**: AI przewiduje kto wygra konkurs
@@ -42,8 +42,7 @@ System ocenia pianistów według 5 głównych kryteriów:
    - Pewność siebie
    - Kontakt z publicznością
    - Prezentacja fizyczna
-   - Radzenie sobie z błędami
-
+   - Radzenie sobie z błęd
 5. **Repertuar (15%)**
    - Poziom trudności
    - Różnorodność
@@ -58,7 +57,7 @@ System ocenia pianistów według 5 głównych kryteriów:
 - **8.5-9.0**: Excellent (świetnie)
 - **9.0-10.0**: Outstanding (wybitnie)
 
-## 🚀 Instalacja
+## Instalacja
 
 ### Wymagania
 - Python 3.11+
@@ -98,7 +97,7 @@ redis-server &
 uvicorn main:app --reload
 ```
 
-## 📡 API Endpoints
+##  API Endpoints
 
 ### `POST /analyze`
 Główna analiza konkursu

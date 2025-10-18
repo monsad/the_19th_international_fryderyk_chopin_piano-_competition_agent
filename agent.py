@@ -10,7 +10,6 @@ from config import settings
 import json
 from datetime import datetime
 
-# Fix for pydantic compatibility issue with ChatOpenAI
 try:
     ChatOpenAI.model_rebuild()
 except Exception:
@@ -65,7 +64,6 @@ class ChopinCompetitionAgent:
         print("🎹 Collecting performance data...")
         
         try:
-            # Zbierz z różnych źródeł
             website_performances = await self.website_collector.collect(days_back=30)
             youtube_performances = await self.youtube_collector.collect(
                 search_query="Chopin Competition 2025",
@@ -74,7 +72,7 @@ class ChopinCompetitionAgent:
             
             all_performances = website_performances + youtube_performances
             
-            print(f"✅ Collected {len(all_performances)} performances")
+            print(f"Collected {len(all_performances)} performances")
             
             return {
                 "performances_collected": all_performances,
@@ -87,12 +85,12 @@ class ChopinCompetitionAgent:
     
     async def _collect_reviews(self, state: AgentState) -> Dict:
         """Collect expert reviews and opinions"""
-        print("📰 Collecting expert reviews...")
+        print("Collecting expert reviews...")
         
         try:
             reviews = await self.news_collector.collect(days_back=30)
             
-            print(f"✅ Collected {len(reviews)} reviews")
+            print(f"Collected {len(reviews)} reviews")
             
             return {
                 "reviews_collected": reviews
@@ -104,7 +102,7 @@ class ChopinCompetitionAgent:
     
     async def _analyze_performances(self, state: AgentState) -> Dict:
         """Analyze individual performances using AI"""
-        print("🔍 Analyzing performances with AI...")
+        print("Analyzing performances with AI...")
         
         video_analyses = []
         
@@ -122,8 +120,7 @@ class ChopinCompetitionAgent:
     
     async def _analyze_single_performance(self, performance: PerformanceData, reviews: List[Dict]) -> Dict:
         """Analyze a single performance"""
-        
-        # Znajdź recenzje dotyczące tego pianisty
+
         relevant_reviews = [
             r for r in reviews 
             if performance.pianist_name.lower() in r.get('content', '').lower()
@@ -190,7 +187,7 @@ class ChopinCompetitionAgent:
     
     async def _evaluate_pianists(self, state: AgentState) -> Dict:
         """Evaluate all pianists and create rankings"""
-        print("⭐ Evaluating pianists...")
+        print("Evaluating pianists...")
         
         pianist_evaluations = {}
         
@@ -218,7 +215,6 @@ class ChopinCompetitionAgent:
     async def _create_pianist_evaluation(self, pianist_name: str, analyses: List[Dict], state: AgentState) -> PianistEvaluation:
         """Create comprehensive evaluation for a pianist"""
         
-        # Znajdź dane o występach tego pianisty
         performances = [
             p for p in state.performances_collected 
             if p.pianist_name == pianist_name
@@ -227,14 +223,14 @@ class ChopinCompetitionAgent:
         if not performances:
             raise ValueError(f"No performances found for {pianist_name}")
         
-        # Uśrednij wyniki z wielu analiz
+
         avg_technical = sum(a.get('technical_skill', {}).get('score', 7) for a in analyses) / len(analyses)
         avg_musicality = sum(a.get('musicality', {}).get('score', 7) for a in analyses) / len(analyses)
         avg_interpretation = sum(a.get('interpretation', {}).get('score', 7) for a in analyses) / len(analyses)
         avg_stage = sum(a.get('stage_presence', {}).get('score', 7) for a in analyses) / len(analyses)
         avg_repertoire = sum(a.get('repertoire', {}).get('score', 7) for a in analyses) / len(analyses)
         
-        # Oblicz wynik ważony
+ 
         weighted_score = (
             avg_technical * settings.CRITERIA_WEIGHTS['technical_skill'] +
             avg_musicality * settings.CRITERIA_WEIGHTS['musicality'] +
@@ -243,7 +239,7 @@ class ChopinCompetitionAgent:
             avg_repertoire * settings.CRITERIA_WEIGHTS['repertoire_difficulty']
         )
         
-        # Określ poziom występu
+  
         if weighted_score >= settings.EXCELLENT_SCORE_THRESHOLD:
             level = PerformanceLevel.OUTSTANDING
             win_prob = 0.8
@@ -265,18 +261,15 @@ class ChopinCompetitionAgent:
             win_prob = 0.01
             finalist_prob = 0.1
         
-        # Zbierz mocne i słabe strony
         all_strengths = []
         all_weaknesses = []
         for analysis in analyses:
             all_strengths.extend(analysis.get('strengths', []))
             all_weaknesses.extend(analysis.get('weaknesses', []))
         
-        # Unikalne top 5
         strengths = list(set(all_strengths))[:5]
         weaknesses = list(set(all_weaknesses))[:5]
         
-        # Szczegółowa analiza z AI
         detailed_analysis = await self._generate_detailed_analysis(
             pianist_name, 
             weighted_score, 
@@ -391,11 +384,10 @@ class ChopinCompetitionAgent:
     
     async def _predict_winners(self, state: AgentState) -> Dict:
         """Generate final predictions and rankings"""
-        print("🏆 Generating predictions...")
+        print("Generating predictions...")
         
-        # Sprawdź czy są dane do przetworzenia
         if not state.pianist_evaluations:
-            print("⚠️  No pianist evaluations available - returning empty analysis")
+            print("No pianist evaluations available - returning empty analysis")
             final_analysis = CompetitionAnalysisResponse(
                 timestamp=datetime.now(),
                 stage=CompetitionStage.FINAL,
@@ -412,7 +404,6 @@ class ChopinCompetitionAgent:
             )
             return {"final_analysis": final_analysis}
         
-        # Sortuj pianistów według weighted_score
         ranked_pianists = sorted(
             state.pianist_evaluations.items(),
             key=lambda x: x[1].weighted_score,
@@ -423,13 +414,11 @@ class ChopinCompetitionAgent:
         predicted_winner = top_10[0] if top_10 else "Unable to determine"
         predicted_finalists = top_10[:6] if len(top_10) >= 6 else top_10
         
-        # Dark horses (wysoki score ale niska rozpoznawalność)
         dark_horses = [
             name for name, eval in ranked_pianists[10:20]
             if eval.weighted_score >= settings.HIGH_SCORE_THRESHOLD
         ][:3]
         
-        # Wygeneruj kompletną analizę
         overall_analysis = await self._generate_overall_analysis(ranked_pianists[:10])
         trends = await self._generate_trends_analysis(state.pianist_evaluations)
         historical = await self._generate_historical_comparison(state.pianist_evaluations)
@@ -489,8 +478,6 @@ class ChopinCompetitionAgent:
     
     async def _generate_trends_analysis(self, evaluations: Dict) -> str:
         """Analyze trends in the competition"""
-        
-        # Analiza trendów
         avg_technical = sum(e.technical_analysis.overall_technical_score for e in evaluations.values()) / len(evaluations)
         avg_musicality = sum(e.musical_analysis.overall_musicality_score for e in evaluations.values()) / len(evaluations)
         

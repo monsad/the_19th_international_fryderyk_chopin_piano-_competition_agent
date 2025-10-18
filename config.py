@@ -21,7 +21,6 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
     
-    # Competition Sources
     COMPETITION_SOURCES: List[str] = [
         "https://www.chopincompetition.pl/pl",  # Oficjalna strona konkursu 2025
         "https://www.chopincompetition.pl/en",  # English version
@@ -29,7 +28,6 @@ class Settings(BaseSettings):
         "https://nifc.pl/en/news"
     ]
     
-    # News Sources for reviews
     NEWS_SOURCES: List[str] = [
         "https://www.polskieradio.pl/8,dwojka",  # Polskie Radio Dwójka - relacje z konkursu!
         "https://www.theguardian.com/music",
@@ -37,7 +35,6 @@ class Settings(BaseSettings):
         "https://www.classicfm.com/news/"
     ]
     
-    # Musical Criteria (weights)
     CRITERIA_WEIGHTS: Dict[str, float] = {
         "technical_skill": 0.25,
         "musicality": 0.30,
@@ -46,13 +43,11 @@ class Settings(BaseSettings):
         "repertoire_difficulty": 0.15
     }
     
-    # Score thresholds
     LOW_SCORE_THRESHOLD: float = 6.0
     MEDIUM_SCORE_THRESHOLD: float = 7.5
     HIGH_SCORE_THRESHOLD: float = 8.5
     EXCELLENT_SCORE_THRESHOLD: float = 9.0
     
-    # Chopin works categories
     CHOPIN_CATEGORIES: Dict[str, List[str]] = {
         "etudes": ["Op. 10", "Op. 25"],
         "preludes": ["Op. 28"],
@@ -66,7 +61,6 @@ class Settings(BaseSettings):
         "mazurkas": ["Various Op. numbers"]
     }
     
-    # Agent Configuration
     MAX_ITERATIONS: int = 5
     TEMPERATURE: float = 0.4
 

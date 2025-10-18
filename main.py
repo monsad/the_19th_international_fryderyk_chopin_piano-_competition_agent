@@ -27,23 +27,23 @@ async def lifespan(app: FastAPI):
             decode_responses=True
         )
         await redis_client.ping()
-        print("✅ Redis connected")
+        print("Redis connected")
     except Exception as e:
-        print(f"⚠️  Redis not available: {e}")
+        print(f"Redis not available: {e}")
         redis_client = None
     
     agent = ChopinCompetitionAgent()
-    print("🎹 Chopin Competition Agent ready!")
+    print("Chopin Competition Agent ready!")
     
     yield
     
     # Shutdown
     if redis_client:
         await redis_client.close()
-    print("👋 Application shutdown")
+    print("Application shutdown")
 
 app = FastAPI(
-    title="🎹 Chopin Competition Analysis API",
+    title="Chopin Competition Analysis API",
     description="AI-powered analysis system for the XIX International Fryderyk Chopin Piano Competition",
     version="1.0.0",
     lifespan=lifespan
@@ -62,7 +62,7 @@ app.add_middleware(
 async def root():
     """Root endpoint"""
     return {
-        "service": "🎹 Chopin Competition Analysis Agent",
+        "service": "Chopin Competition Analysis Agent",
         "version": "1.0.0",
         "status": "operational",
         "description": "AI system for analyzing XIX Chopin Competition performances and predicting winners",
@@ -128,7 +128,6 @@ async def analyze_competition(
     try:
         print(f"🎹 Starting analysis (lookback: {request.lookback_days} days)...")
         
-        # Run the agent
         result = await agent.analyze(
             pianist_name=request.pianist_name,
             lookback_days=request.lookback_days
