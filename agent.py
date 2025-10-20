@@ -3,9 +3,11 @@
 from typing import Dict
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_anthropic import ChatAnthropic
+from langchain_core.prompts import ChatPromptTemplate
 from models import *
 from data_collector import CompetitionWebsiteCollector, YouTubeCollector, NewsReviewCollector
+from jury_analyzer import JuryAnalyzer
 from config import settings
 import json
 from datetime import datetime
@@ -23,18 +25,19 @@ class ChopinCompetitionAgent:
         self.website_collector = CompetitionWebsiteCollector()
         self.youtube_collector = YouTubeCollector()
         self.news_collector = NewsReviewCollector()
+        self.jury_analyzer = JuryAnalyzer()
         self.graph = self._build_graph()
     
     @property
     def llm(self):
-        """Lazy initialization of ChatOpenAI"""
+        """Lazy initialization of ChatAnthropic"""
         if self._llm is None:
-            if not settings.OPENAI_API_KEY:
-                raise ValueError("OPENAI_API_KEY is not set in .env file")
-            self._llm = ChatOpenAI(
-                model="gpt-4",
+            if not settings.ANTHROPIC_API_KEY:
+                raise ValueError("ANTHROPIC_API_KEY is not set in .env file")
+            self._llm = ChatAnthropic(
+                model="claude-3-5-sonnet-20241022",
                 temperature=settings.TEMPERATURE,
-                api_key=settings.OPENAI_API_KEY
+                api_key=settings.ANTHROPIC_API_KEY
             )
         return self._llm
     
@@ -45,6 +48,7 @@ class ChopinCompetitionAgent:
         # Add nodes
         workflow.add_node("collect_performances", self._collect_performances)
         workflow.add_node("collect_reviews", self._collect_reviews)
+        workflow.add_node("analyze_jury", self._analyze_jury)
         workflow.add_node("analyze_performances", self._analyze_performances)
         workflow.add_node("evaluate_pianists", self._evaluate_pianists)
         workflow.add_node("predict_winners", self._predict_winners)
@@ -52,7 +56,8 @@ class ChopinCompetitionAgent:
         # Add edges
         workflow.set_entry_point("collect_performances")
         workflow.add_edge("collect_performances", "collect_reviews")
-        workflow.add_edge("collect_reviews", "analyze_performances")
+        workflow.add_edge("collect_reviews", "analyze_jury")
+        workflow.add_edge("analyze_jury", "analyze_performances")
         workflow.add_edge("analyze_performances", "evaluate_pianists")
         workflow.add_edge("evaluate_pianists", "predict_winners")
         workflow.add_edge("predict_winners", END)
@@ -98,6 +103,33 @@ class ChopinCompetitionAgent:
         except Exception as e:
             return {
                 "errors": state.errors + [f"Review collection error: {str(e)}"]
+            }
+    
+    async def _analyze_jury(self, state: AgentState) -> Dict:
+        """Analyze jury composition and preferences"""
+        print("🎭 Analyzing jury composition and preferences...")
+        
+        try:
+            jury_analysis = await self.jury_analyzer.analyze_jury()
+            
+            # Zapisz preferencje jury w stanie
+            state.jury_preferences = self.jury_analyzer.get_jury_weights()
+            state.jury_analysis = jury_analysis
+            
+            print(f"✅ Jury analysis complete: {jury_analysis['jury_members']} members analyzed")
+            
+            return {
+                "jury_preferences": state.jury_preferences,
+                "jury_analysis": state.jury_analysis
+            }
+            
+        except Exception as e:
+            print(f"⚠️  Error analyzing jury: {e}")
+            # Fallback - użyj domyślnych preferencji
+            state.jury_preferences = settings.CRITERIA_WEIGHTS
+            return {
+                "jury_preferences": state.jury_preferences,
+                "jury_analysis": {"error": str(e)}
             }
     
     async def _analyze_performances(self, state: AgentState) -> Dict:
@@ -231,12 +263,15 @@ class ChopinCompetitionAgent:
         avg_repertoire = sum(a.get('repertoire', {}).get('score', 7) for a in analyses) / len(analyses)
         
  
+        # Użyj preferencji jury jeśli dostępne, w przeciwnym razie domyślne wagi
+        weights = state.jury_preferences if state.jury_preferences else settings.CRITERIA_WEIGHTS
+        
         weighted_score = (
-            avg_technical * settings.CRITERIA_WEIGHTS['technical_skill'] +
-            avg_musicality * settings.CRITERIA_WEIGHTS['musicality'] +
-            avg_interpretation * settings.CRITERIA_WEIGHTS['interpretation'] +
-            avg_stage * settings.CRITERIA_WEIGHTS['stage_presence'] +
-            avg_repertoire * settings.CRITERIA_WEIGHTS['repertoire_difficulty']
+            avg_technical * weights.get('technical_skill', settings.CRITERIA_WEIGHTS['technical_skill']) +
+            avg_musicality * weights.get('musicality', settings.CRITERIA_WEIGHTS['musicality']) +
+            avg_interpretation * weights.get('interpretation', settings.CRITERIA_WEIGHTS['interpretation']) +
+            avg_stage * weights.get('stage_presence', settings.CRITERIA_WEIGHTS['stage_presence']) +
+            avg_repertoire * weights.get('repertoire_difficulty', settings.CRITERIA_WEIGHTS['repertoire_difficulty'])
         )
         
   

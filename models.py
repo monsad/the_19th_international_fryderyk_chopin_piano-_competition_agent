@@ -139,6 +139,10 @@ class AgentState(BaseModel):
     reviews_collected: List[Dict] = []
     video_analyses: List[Dict] = []
     
+    # Jury analysis
+    jury_preferences: Dict[str, float] = {}
+    jury_analysis: Dict = {}
+    
     pianist_evaluations: Dict[str, PianistEvaluation] = {}
     
     final_analysis: Optional[CompetitionAnalysisResponse] = None

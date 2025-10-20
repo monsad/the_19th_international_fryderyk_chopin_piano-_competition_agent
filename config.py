@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     
     # API Keys
     OPENAI_API_KEY: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
     YOUTUBE_API_KEY: Optional[str] = None
     SPOTIFY_CLIENT_ID: Optional[str] = None
     SPOTIFY_CLIENT_SECRET: Optional[str] = None
@@ -33,6 +34,12 @@ class Settings(BaseSettings):
         "https://www.theguardian.com/music",
         "https://www.nytimes.com/section/arts/music",
         "https://www.classicfm.com/news/"
+    ]
+    
+    JURY_SOURCES: List[str] = [
+        "https://wiadomosci.radiozet.pl/kultura/konkurs-chopinowski-2025-kto-zasiada-w-jury-lista",
+        "https://chopin2020.pl/en/jury",
+        "https://nifc.pl/en/competitions/chopin-competition/jury"
     ]
     
     CRITERIA_WEIGHTS: Dict[str, float] = {

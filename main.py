@@ -91,6 +91,7 @@ async def health_check():
         "status": "healthy",
         "redis": "connected" if redis_healthy else "disconnected",
         "agent": "ready",
+        "anthropic_key": "configured" if settings.ANTHROPIC_API_KEY else "missing",
         "openai_key": "configured" if settings.OPENAI_API_KEY else "missing",
         "timestamp": datetime.now().isoformat()
     }
